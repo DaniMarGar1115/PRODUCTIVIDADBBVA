@@ -10,7 +10,7 @@ st.set_page_config(page_title="BBVA | Portal único (Empleado + Admin)", page_ic
 BBVA_PRIMARY   = "#072146"  # Azul BBVA
 BBVA_SECONDARY = "#00A1E0"
 LOGO_URL = os.getenv("BBVA_LOGO_URL", "")  # opcional: Settings→Secrets: BBVA_LOGO_URL="https://..."
-ADMIN_PIN = os.getenv("ADMIN_PIN", "bbva2025")  # Settings→Secrets para cambiar
+ADMIN_PIN = os.getenv("ADMIN_PIN", "bbva2025prueba")  # Settings→Secrets para cambiar
 
 st.markdown('''
 <style>
