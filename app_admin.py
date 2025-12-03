@@ -6,22 +6,21 @@ import os
 # =========================
 # CONFIGURACIÓN GENERAL
 # =========================
-st.set_page_config(page_title="Portal de Productividad", layout="wide")
+st.set_page_config(
+    page_title="PRODUCTIVIDAD Y EXTRAS BBVA PQRS",
+    layout="wide"
+)
 
-# Estilos tipo BBVA
-BBVA_PRIMARY = "#0039A6"   # Azul BBVA
-BBVA_DARK = "#00234F"
-BBVA_LIGHT = "#E9EDF5"
-
-BBVA_PRIMARY = "#0039A6"      # Azul BBVA
-BBVA_PRIMARY_DARK = "#002B76" # Azul BBVA más oscuro
+# Paleta de colores BBVA
+BBVA_PRIMARY = "#0039A6"       # Azul BBVA
+BBVA_PRIMARY_DARK = "#002B76"  # Azul BBVA más oscuro
 BBVA_WHITE = "#FFFFFF"
 
+# Estilos globales
 st.markdown(
     f"""
     <style>
-
-    /* Fondo general */
+    /* Fondo general blanco */
     .stApp {{
         background-color: {BBVA_WHITE};
         font-family: "Segoe UI", "Roboto", sans-serif;
@@ -32,29 +31,29 @@ st.markdown(
     .block-container {{
         padding-top: 2rem;
         padding-bottom: 4rem;
-        background-color: {BBVA_WHITE};
         max-width: 1200px;
+        margin: 0 auto;
     }}
 
-    /* Encabezado con logo */
+    /* Encabezado con logo y línea azul */
     .bbva-header {{
         display: flex;
         align-items: center;
         gap: 16px;
         padding: 10px 0 20px 0;
-        border-bottom: 2px solid {BBVA_PRIMARY};
-        margin-bottom: 20px;
+        border-bottom: 3px solid {BBVA_PRIMARY};
+        margin-bottom: 24px;
     }}
 
     .bbva-title {{
-        font-size: 32px;
+        font-size: 30px;
         font-weight: 700;
         color: {BBVA_PRIMARY};
         margin: 0;
     }}
 
     .bbva-subtitle {{
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 400;
         color: #000000;
         margin: 0;
@@ -84,36 +83,22 @@ st.markdown(
         background-color: {BBVA_PRIMARY_DARK} !important;
     }}
 
-    /* Select, input, tabla */
-    .stSelectbox div[data-baseweb="select"] {{
-        background-color: {BBVA_WHITE};
-        color: #000000;
-    }}
-
-    .stTextInput input {{
-        background-color: {BBVA_WHITE};
-        color: #000000;
-    }}
-
-    .stNumberInput input {{
-        background-color: {BBVA_WHITE};
-        color: #000000;
-    }}
-
+    /* Inputs y selects blancos, texto negro */
+    .stSelectbox div[data-baseweb="select"],
+    .stTextInput input,
+    .stNumberInput input,
     .stDateInput input {{
         background-color: {BBVA_WHITE};
         color: #000000;
     }}
 
-    /* Estilos para la tabla */
     .stDataFrame, .stDataEditor {{
         color: #000000 !important;
     }}
 
-    /* Barra lateral */
-    .css-1d391kg, .css-1uixxvy, .css-1y4p8pa {{
+    /* Barra lateral blanca con borde azul */
+    section[data-testid="stSidebar"] {{
         background-color: {BBVA_WHITE} !important;
-        color: #000000 !important;
         border-right: 2px solid {BBVA_PRIMARY};
     }}
 
@@ -122,61 +107,9 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
-    /* Fondo de los contenedores principales */
-    .block-container {{
-        padding-top: 1rem;
-        padding-bottom: 3rem;
-        max-width: 1200px;
-        margin: 0 auto;
-        background-color: #FFFFFFEE;
-        border-radius: 16px;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-    }}
-
-    .bbva-header {{
-        display:flex;
-        align-items:center;
-        gap:16px;
-        padding:10px 0 20px 0;
-    }}
-    .bbva-title {{
-        font-size:28px;
-        font-weight:700;
-        color:{BBVA_PRIMARY};
-        margin:0;
-    }}
-    .bbva-subtitle {{
-        font-size:14px;
-        color:#444444;
-        margin:0;
-    }}
-    .metric-card {{
-        background:white;
-        padding:16px;
-        border-radius:10px;
-        border:1px solid #D4DBE8;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.03);
-    }}
-
-    /* Botón principal rojo → azul BBVA */
-    button[kind="primary"] {{
-        background-color: {BBVA_PRIMARY} !important;
-        color: white !important;
-        border-radius: 999px !important;
-        border: none !important;
-        font-weight: 600 !important;
-    }}
-    button[kind="primary"]:hover {{
-        background-color: {BBVA_DARK} !important;
-    }}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-
-# Encabezado con logo
+# =========================
+# ENCABEZADO CON LOGO
+# =========================
 col_logo, col_title = st.columns([1, 5])
 with col_logo:
     if os.path.exists("logo_bbva.png"):
@@ -186,8 +119,8 @@ with col_title:
         """
         <div class="bbva-header">
             <div>
-                <p class="bbva-title">Panel de Productividad de la Empresa</p>
-                <p class="bbva-subtitle">Control de casos, metas diarias y análisis mensual</p>
+                <p class="bbva-title">PRODUCTIVIDAD Y EXTRAS BBVA PQRS</p>
+                <p class="bbva-subtitle">Control de casos, metas diarias y análisis mensual por analista</p>
             </div>
         </div>
         """,
@@ -197,7 +130,7 @@ with col_title:
 CSV_PATH = "registro_empresarial2.csv"
 
 # =========================
-# CARGA DE DATOS PERSISTENTES
+# CARGA DE DATOS PERSISTENTES (CSV)
 # =========================
 if os.path.exists(CSV_PATH):
     try:
@@ -258,6 +191,7 @@ st.sidebar.header("Configuración")
 
 perfil = st.sidebar.selectbox("Perfil", ["Empleado", "Administrador", "Líder"])
 
+# metas y valores por defecto
 if "meta_dia" not in st.session_state:
     st.session_state["meta_dia"] = 20
 if "meta_mes" not in st.session_state:
@@ -271,10 +205,13 @@ if "valor_sabado" not in st.session_state:
     st.session_state["valor_sabado"] = 5000.0
 
 salario_base_mensual = st.sidebar.number_input(
-    "Salario base mensual ($)", min_value=0.0, value=1_500_000.0, step=100_000.0
+    "Salario base mensual ($)",
+    min_value=0.0,
+    value=1_500_000.0,
+    step=100_000.0,
 )
 
-# MODO LÍDER: puede modificar metas y tarifas con clave
+# MODO LÍDER: puede cambiar metas y valores con clave
 if perfil == "Líder":
     clave = st.sidebar.text_input("Contraseña líderes", type="password")
     if clave != "BBVA2025":
@@ -282,10 +219,16 @@ if perfil == "Líder":
     else:
         st.sidebar.success("Acceso de líder habilitado.")
         st.session_state["meta_dia"] = st.sidebar.number_input(
-            "Meta de casos por día", min_value=0, value=st.session_state["meta_dia"], step=1
+            "Meta de casos por día",
+            min_value=0,
+            value=st.session_state["meta_dia"],
+            step=1,
         )
         st.session_state["meta_mes"] = st.sidebar.number_input(
-            "Meta de casos por mes", min_value=0, value=st.session_state["meta_mes"], step=5
+            "Meta de casos por mes",
+            min_value=0,
+            value=st.session_state["meta_mes"],
+            step=5,
         )
         st.sidebar.markdown("---")
         st.sidebar.markdown("Tarifas por tipo de caso:")
@@ -329,7 +272,9 @@ def valor_fila(fila):
 
 
 def calcular_racha_meta(df_emp_mes, meta_diaria):
-    """Devuelve True si el analista ha cumplido la meta TODOS los días del mes."""
+    """
+    True solo si el analista ha cumplido la meta TODOS los días del rango donde tiene casos.
+    """
     if df_emp_mes.empty:
         return False
     fechas = pd.to_datetime(df_emp_mes["Fecha"]).dt.date
@@ -349,7 +294,10 @@ def calcular_racha_meta(df_emp_mes, meta_diaria):
 # =========================
 if perfil == "Empleado":
     st.subheader("Registro de productividad (Empleado)")
-    st.write("Complete la tabla con los casos del día y guarde todos los registros. Puede copiar/pegar varias filas desde Excel.")
+    st.write(
+        "Complete la tabla con los casos del día y guarde todos los registros. "
+        "Puede copiar/pegar varias filas desde Excel."
+    )
 
     col_emp1, col_emp2 = st.columns(2)
     with col_emp1:
@@ -479,7 +427,7 @@ if perfil == "Empleado":
                     st.metric("Total estimado mes", f"${dinero_total_mes:,.0f}")
                     st.markdown("</div>", unsafe_allow_html=True)
 
-                # Gráfica por día + categoría
+                # Gráfica por día y categoría
                 st.markdown("#### Gráfica de productividad por día y categoría")
                 df_graf = (
                     df_emp_mes.groupby(
@@ -514,7 +462,10 @@ if perfil == "Empleado":
                         df = df[~df["ID"].isin(ids_a_borrar)]
                         st.session_state["registros"] = df
                         df.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")
-                        st.success(f"Se eliminaron {len(ids_a_borrar)} caso(s). Recargue la página para ver cambios.")
+                        st.success(
+                            f"Se eliminaron {len(ids_a_borrar)} caso(s). "
+                            "Recargue la página para ver los cambios."
+                        )
 
 # =========================
 # PERFIL ADMINISTRADOR / LÍDER
@@ -547,7 +498,7 @@ if perfil in ["Administrador", "Líder"]:
             resumen_emp["Total_mes_estimado"] = salario_base_mensual + resumen_emp["Valor_casos_mes"]
             resumen_emp["Cumple_meta_mes"] = resumen_emp["Casos_mes"] >= meta_mes
 
-            # Cálculo de racha perfecta por analista
+            # Racha perfecta por analista
             racha_flags = []
             for emp in resumen_emp["Empleado"]:
                 df_emp = df_mes[df_mes["Empleado"] == emp]
@@ -570,7 +521,7 @@ if perfil in ["Administrador", "Líder"]:
             df_pivot = df_graf.pivot(index="Día", columns="Categoria", values="Total_casos").fillna(0)
             st.bar_chart(df_pivot)
 
-            # Ranking de mejores analistas (por casos y por valor)
+            # Ranking de mejores analistas
             st.markdown("#### Mejores analistas del mes")
 
             ranking_casos = resumen_emp.sort_values("Casos_mes", ascending=False).head(5)
@@ -580,12 +531,16 @@ if perfil in ["Administrador", "Líder"]:
             with col_r1:
                 st.markdown("**Top 5 por número de casos**")
                 st.dataframe(
-                    ranking_casos[["Empleado", "Lider", "Casos_mes", "Cumple_meta_mes", "Racha_perfecta"]],
+                    ranking_casos[
+                        ["Empleado", "Lider", "Casos_mes", "Cumple_meta_mes", "Racha_perfecta"]
+                    ],
                     use_container_width=True,
                 )
             with col_r2:
                 st.markdown("**Top 5 por valor generado**")
                 st.dataframe(
-                    ranking_valor[["Empleado", "Lider", "Valor_casos_mes", "Total_mes_estimado"]],
+                    ranking_valor[
+                        ["Empleado", "Lider", "Valor_casos_mes", "Total_mes_estimado"]
+                    ],
                     use_container_width=True,
                 )
