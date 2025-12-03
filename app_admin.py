@@ -3,14 +3,73 @@ import pandas as pd
 from datetime import datetime, date
 import os
 
+# =========================
+# CONFIGURACIÓN GENERAL
+# =========================
 st.set_page_config(page_title="Portal de Productividad", layout="wide")
-st.title("Panel de Productividad de la Empresa")
+
+# Estilos tipo BBVA
+BBVA_PRIMARY = "#0039A6"
+BBVA_LIGHT = "#F5F7FB"
+
+st.markdown(
+    f"""
+    <style>
+    .stApp {{
+        background-color: {BBVA_LIGHT};
+        font-family: "Segoe UI", sans-serif;
+    }}
+    .bbva-header {{
+        display:flex;
+        align-items:center;
+        gap:16px;
+        padding:10px 0 20px 0;
+    }}
+    .bbva-title {{
+        font-size:28px;
+        font-weight:700;
+        color:{BBVA_PRIMARY};
+        margin:0;
+    }}
+    .bbva-subtitle {{
+        font-size:14px;
+        color:#4B4B4B;
+        margin:0;
+    }}
+    .metric-card {{
+        background:white;
+        padding:16px;
+        border-radius:10px;
+        border:1px solid #E0E4EC;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Encabezado con logo
+col_logo, col_title = st.columns([1, 5])
+with col_logo:
+    if os.path.exists("logo_bbva.png"):
+        st.image("logo_bbva.png", use_container_width=False)
+with col_title:
+    st.markdown(
+        """
+        <div class="bbva-header">
+            <div>
+                <p class="bbva-title">Panel de Productividad de la Empresa</p>
+                <p class="bbva-subtitle">Control de casos, metas diarias y análisis mensual</p>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 CSV_PATH = "registro_empresarial2.csv"
 
-# ------------------------
+# =========================
 # CARGA DE DATOS PERSISTENTES
-# ------------------------
+# =========================
 if os.path.exists(CSV_PATH):
     try:
         df = pd.read_csv(CSV_PATH, encoding="utf-8-sig")
@@ -21,7 +80,6 @@ if os.path.exists(CSV_PATH):
 else:
     df = pd.DataFrame()
 
-# Estructura base
 COLUMNAS = [
     "ID",
     "Empleado",
@@ -35,7 +93,6 @@ COLUMNAS = [
 if df.empty:
     df = pd.DataFrame(columns=COLUMNAS)
 else:
-    # Si el CSV viejo no tiene ID o alguna columna, la creamos
     for col in COLUMNAS:
         if col not in df.columns:
             if col == "ID":
@@ -44,7 +101,6 @@ else:
                 df[col] = None
     df = df[COLUMNAS]
 
-# Asegurar IDs únicos
 if df["ID"].isnull().any():
     df["ID"] = range(1, len(df) + 1)
 df["ID"] = df["ID"].astype(int)
@@ -52,9 +108,9 @@ df["ID"] = df["ID"].astype(int)
 st.session_state["registros"] = df
 df = st.session_state["registros"]
 
-# ------------------------
+# =========================
 # CONSTANTES
-# ------------------------
+# =========================
 LIDERES = [
     "Alejandra Puentes",
     "Carlos Cierra",
@@ -66,9 +122,9 @@ LIDERES = [
 TIPOS_CASO = ["Productividad", "Adicional", "Meta sábado"]
 CATEGORIAS = ["Finalizado", "Tutela", "Defensoría"]
 
-# ------------------------
+# =========================
 # BARRA LATERAL
-# ------------------------
+# =========================
 st.sidebar.header("Configuración")
 
 perfil = st.sidebar.selectbox("Perfil", ["Empleado", "Administrador", "Líder"])
@@ -89,7 +145,7 @@ salario_base_mensual = st.sidebar.number_input(
     "Salario base mensual ($)", min_value=0.0, value=1_500_000.0, step=100_000.0
 )
 
-# MODO LÍDER: modifica metas y valores
+# MODO LÍDER: puede modificar metas y tarifas con clave
 if perfil == "Líder":
     clave = st.sidebar.text_input("Contraseña líderes", type="password")
     if clave != "BBVA2025":
@@ -105,7 +161,7 @@ if perfil == "Líder":
         st.sidebar.markdown("---")
         st.sidebar.markdown("Tarifas por tipo de caso:")
         st.session_state["valor_prod"] = st.sidebar.number_input(
-            "Valor por caso de Productividad ($)",
+            "Valor por caso Productividad ($)",
             min_value=0.0,
             value=st.session_state["valor_prod"],
             step=500.0,
@@ -131,14 +187,40 @@ valor_sabado = st.session_state["valor_sabado"]
 
 st.markdown("---")
 
-# ------------------------
+# =========================
+# FUNCIONES AUXILIARES
+# =========================
+def valor_fila(fila):
+    if fila["Tipo_caso"] == "Productividad":
+        return valor_prod
+    elif fila["Tipo_caso"] == "Adicional":
+        return valor_adic
+    else:
+        return valor_sabado
+
+
+def calcular_racha_meta(df_emp_mes, meta_diaria):
+    """Devuelve True si el analista ha cumplido la meta TODOS los días del mes."""
+    if df_emp_mes.empty:
+        return False
+    fechas = pd.to_datetime(df_emp_mes["Fecha"]).dt.date
+    primer_dia = fechas.min()
+    ultimo_dia = fechas.max()
+    rango = pd.date_range(primer_dia, ultimo_dia, freq="D").date
+    df_por_dia = df_emp_mes.groupby(pd.to_datetime(df_emp_mes["Fecha"]).dt.date)["ID"].count()
+    for d in rango:
+        casos_dia = df_por_dia.get(d, 0)
+        if casos_dia < meta_diaria:
+            return False
+    return True
+
+
+# =========================
 # PERFIL EMPLEADO
-# ------------------------
+# =========================
 if perfil == "Empleado":
     st.subheader("Registro de productividad (Empleado)")
-    st.write("1. Escriba su nombre y seleccione su líder.")
-    st.write("2. Registre los casos del día en la tabla (puede copiar/pegar varias filas desde Excel).")
-    st.write("3. Presione 'Guardar todos los casos' para almacenar la información.")
+    st.write("Complete la tabla con los casos del día y guarde todos los registros. Puede copiar/pegar varias filas desde Excel.")
 
     col_emp1, col_emp2 = st.columns(2)
     with col_emp1:
@@ -172,7 +254,7 @@ if perfil == "Empleado":
         hide_index=True,
     )
 
-    if st.button("Guardar todos los casos"):
+    if st.button("Guardar todos los casos", type="primary"):
         if nombre_empleado.strip() == "":
             st.warning("Por favor ingrese el nombre del empleado.")
         else:
@@ -187,7 +269,6 @@ if perfil == "Empleado":
                 edited["Empleado"] = nombre_empleado
                 edited["Lider"] = lider
 
-                # Asignar IDs nuevos
                 if df.empty:
                     next_id = 1
                 else:
@@ -201,10 +282,9 @@ if perfil == "Empleado":
                 )
                 df = st.session_state["registros"]
                 df.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")
-
                 st.success("Registros guardados correctamente.")
 
-    # --------- RESUMEN DEL EMPLEADO ---------
+    # ---------- RESUMEN DEL EMPLEADO ----------
     df = st.session_state["registros"]
 
     if df.empty:
@@ -213,7 +293,7 @@ if perfil == "Empleado":
         st.subheader("Resumen del empleado")
 
         empleados_disponibles = ["Seleccione..."] + sorted(df["Empleado"].unique().tolist())
-        empleado_sel = st.selectbox("Seleccione su nombre para ver su resumen", empleados_disponibles)
+        empleado_sel = st.selectbox("Seleccione su nombre", empleados_disponibles)
 
         if empleado_sel != "Seleccione...":
             hoy = datetime.today()
@@ -232,38 +312,56 @@ if perfil == "Empleado":
                 casos_dia = len(df_emp_hoy)
                 casos_mes = len(df_emp_mes)
 
-                # Dinero por tipo de caso
-                def valor_fila(f):
-                    if f["Tipo_caso"] == "Productividad":
-                        return valor_prod
-                    elif f["Tipo_caso"] == "Adicional":
-                        return valor_adic
-                    else:
-                        return valor_sabado
-
                 df_emp_mes["Valor_caso"] = df_emp_mes.apply(valor_fila, axis=1)
                 dinero_casos_mes = df_emp_mes["Valor_caso"].sum()
                 dinero_total_mes = salario_base_mensual + dinero_casos_mes
 
+                racha_completa = calcular_racha_meta(df_emp_mes, meta_dia)
+
                 col1, col2, col3, col4 = st.columns(4)
-                col1.metric("Casos hoy", int(casos_dia))
-                col2.metric("Casos en el mes", int(casos_mes))
-                col3.metric("¿Cumple meta diaria?", "Sí" if casos_dia >= meta_dia else "No")
-                col4.metric("¿Cumple meta mensual?", "Sí" if casos_mes >= meta_mes else "No")
+                with col1:
+                    st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                    st.metric("Casos hoy", int(casos_dia))
+                    st.markdown("</div>", unsafe_allow_html=True)
+                with col2:
+                    st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                    st.metric("Casos en el mes", int(casos_mes))
+                    st.markdown("</div>", unsafe_allow_html=True)
+                with col3:
+                    st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                    st.metric("Meta diaria", f"{meta_dia} casos", "Cumple" if casos_dia >= meta_dia else "No")
+                    st.markdown("</div>", unsafe_allow_html=True)
+                with col4:
+                    st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                    st.metric(
+                        "Racha perfecta del mes",
+                        "Sí" if racha_completa else "No",
+                    )
+                    st.markdown("</div>", unsafe_allow_html=True)
 
                 st.markdown("#### Dinero acumulado en el mes")
                 col5, col6 = st.columns(2)
-                col5.metric("Valor por casos (mes)", f"${dinero_casos_mes:,.0f}")
-                col6.metric("Total estimado mes", f"${dinero_total_mes:,.0f}")
+                with col5:
+                    st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                    st.metric("Valor por casos (mes)", f"${dinero_casos_mes:,.0f}")
+                    st.markdown("</div>", unsafe_allow_html=True)
+                with col6:
+                    st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                    st.metric("Total estimado mes", f"${dinero_total_mes:,.0f}")
+                    st.markdown("</div>", unsafe_allow_html=True)
 
-                st.markdown("#### Gráfica de productividad (casos por día)")
+                # Gráfica por día + categoría
+                st.markdown("#### Gráfica de productividad por día y categoría")
                 df_graf = (
-                    df_emp_mes.groupby(pd.to_datetime(df_emp_mes["Fecha"]).dt.date)["ID"]
+                    df_emp_mes.groupby(
+                        [pd.to_datetime(df_emp_mes["Fecha"]).dt.date, "Categoria"]
+                    )["ID"]
                     .count()
                     .reset_index()
                     .rename(columns={"Fecha": "Día", "ID": "Total_casos"})
                 )
-                st.bar_chart(df_graf.set_index("Día")["Total_casos"])
+                df_pivot = df_graf.pivot(index="Día", columns="Categoria", values="Total_casos").fillna(0)
+                st.bar_chart(df_pivot)
 
                 st.markdown("#### Casos del mes (puede marcar para eliminar)")
                 df_emp_mes_view = df_emp_mes.copy()
@@ -289,9 +387,9 @@ if perfil == "Empleado":
                         df.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")
                         st.success(f"Se eliminaron {len(ids_a_borrar)} caso(s). Recargue la página para ver cambios.")
 
-# ------------------------
+# =========================
 # PERFIL ADMINISTRADOR / LÍDER
-# ------------------------
+# =========================
 if perfil in ["Administrador", "Líder"]:
     st.subheader("Vista global de productividad")
 
@@ -309,16 +407,9 @@ if perfil in ["Administrador", "Líder"]:
         if df_mes.empty:
             st.info("No hay registros para el mes actual.")
         else:
-            def valor_fila(f):
-                if f["Tipo_caso"] == "Productividad":
-                    return valor_prod
-                elif f["Tipo_caso"] == "Adicional":
-                    return valor_adic
-                else:
-                    return valor_sabado
-
             df_mes["Valor_caso"] = df_mes.apply(valor_fila, axis=1)
 
+            # Resumen por empleado
             resumen_emp = df_mes.groupby(["Empleado", "Lider"]).agg(
                 Casos_mes=("ID", "count"),
                 Valor_casos_mes=("Valor_caso", "sum"),
@@ -327,5 +418,45 @@ if perfil in ["Administrador", "Líder"]:
             resumen_emp["Total_mes_estimado"] = salario_base_mensual + resumen_emp["Valor_casos_mes"]
             resumen_emp["Cumple_meta_mes"] = resumen_emp["Casos_mes"] >= meta_mes
 
+            # Cálculo de racha perfecta por analista
+            racha_flags = []
+            for emp in resumen_emp["Empleado"]:
+                df_emp = df_mes[df_mes["Empleado"] == emp]
+                racha_flags.append(calcular_racha_meta(df_emp, meta_dia))
+            resumen_emp["Racha_perfecta"] = racha_flags
+
             st.markdown("#### Resumen por empleado (mes actual)")
             st.dataframe(resumen_emp, use_container_width=True)
+
+            # Gráfica global por día y categoría
+            st.markdown("#### Gráfica global por día y categoría")
+            df_graf = (
+                df_mes.groupby(
+                    [pd.to_datetime(df_mes["Fecha"]).dt.date, "Categoria"]
+                )["ID"]
+                .count()
+                .reset_index()
+                .rename(columns={"Fecha": "Día", "ID": "Total_casos"})
+            )
+            df_pivot = df_graf.pivot(index="Día", columns="Categoria", values="Total_casos").fillna(0)
+            st.bar_chart(df_pivot)
+
+            # Ranking de mejores analistas (por casos y por valor)
+            st.markdown("#### Mejores analistas del mes")
+
+            ranking_casos = resumen_emp.sort_values("Casos_mes", ascending=False).head(5)
+            ranking_valor = resumen_emp.sort_values("Valor_casos_mes", ascending=False).head(5)
+
+            col_r1, col_r2 = st.columns(2)
+            with col_r1:
+                st.markdown("**Top 5 por número de casos**")
+                st.dataframe(
+                    ranking_casos[["Empleado", "Lider", "Casos_mes", "Cumple_meta_mes", "Racha_perfecta"]],
+                    use_container_width=True,
+                )
+            with col_r2:
+                st.markdown("**Top 5 por valor generado**")
+                st.dataframe(
+                    ranking_valor[["Empleado", "Lider", "Valor_casos_mes", "Total_mes_estimado"]],
+                    use_container_width=True,
+                )
