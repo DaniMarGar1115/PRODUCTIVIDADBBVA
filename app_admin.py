@@ -178,9 +178,9 @@ salario_base_mensual = config["salario_base_mensual"]
 # =========================
 # CARGA DE DATOS PERSISTENTES (CASOS)
 # =========================
-if os.path.exists("registro_empresarial2.csv"):
+if os.path.exists(CSV_PATH):
     try:
-        df = pd.read_csv("registro_empresarial2.csv", encoding="utf-8-sig")
+        df = pd.read_csv(CSV_PATH, encoding="utf-8-sig")
         if "Fecha" in df.columns:
             df["Fecha"] = pd.to_datetime(df["Fecha"]).dt.date
     except Exception:
@@ -345,8 +345,8 @@ def calcular_racha_meta(df_emp_mes, meta_diaria):
 if perfil == "Empleado":
     st.subheader("Registro de productividad (Empleado)")
     st.write(
-        "Complete la tabla con los casos del día y guarde todos los registros. "
-        "Puede copiar/pegar varias filas desde Excel."
+        "Puede registrar sus casos en modo rápido (pegando una lista de números de caso) "
+        "o en modo detallado (tabla editable)."
     )
 
     col_emp1, col_emp2 = st.columns(2)
@@ -357,68 +357,154 @@ if perfil == "Empleado":
 
     hoy = date.today()
 
-    plantilla = pd.DataFrame(
-        [
-            {
-                "Numero_caso": "",
-                "Fecha": hoy,
-                "Tipo_caso": "Productividad",
-                "Categoria": "Finalizado",
-            }
-        ]
+    modo_registro = st.radio(
+        "Modo de registro de casos",
+        ["Ingreso rápido (lista de números de caso)", "Ingreso detallado (tabla)"],
     )
 
-    edited = st.data_editor(
-        plantilla,
-        num_rows="dynamic",
-        use_container_width=True,
-        column_config={
-            "Numero_caso": st.column_config.TextColumn("Número de caso"),
-            "Fecha": st.column_config.DateColumn("Fecha"),
-            "Tipo_caso": st.column_config.SelectboxColumn("Tipo de caso", options=TIPOS_CASO),
-            "Categoria": st.column_config.SelectboxColumn("Categoría", options=CATEGORIAS),
-        },
-        hide_index=True,
-    )
+    # ---------- MODO RÁPIDO ----------
+    if modo_registro == "Ingreso rápido (lista de números de caso)":
+        st.markdown("### Ingreso rápido de casos")
+        col_r1, col_r2, col_r3 = st.columns(3)
+        with col_r1:
+            fecha_casos = st.date_input("Fecha de los casos", value=hoy)
+        with col_r2:
+            tipo_caso_rapido = st.selectbox("Tipo de caso", TIPOS_CASO, key="tipo_rapido")
+        with col_r3:
+            categoria_rapida = st.selectbox("Categoría", CATEGORIAS, key="cat_rapida")
 
-    if st.button("Guardar todos los casos", type="primary"):
-        if nombre_empleado.strip() == "":
-            st.warning("Por favor ingrese el nombre del empleado.")
-        else:
-            edited["Numero_caso"] = edited["Numero_caso"].astype(str).str.strip()
-            edited = edited[edited["Numero_caso"] != ""]
-            edited = edited.dropna(subset=["Fecha", "Tipo_caso", "Categoria"])
+        lista_texto = st.text_area(
+            "Ingrese los números de caso (uno por línea o separados por comas)",
+            height=150,
+            placeholder="Ejemplo:\n123456\n123457\n123458\n\nO:\n123456,123457,123458",
+        )
 
-            if edited.empty:
-                st.warning("No hay casos válidos para guardar.")
+        if st.button("Guardar casos rápidos", type="primary"):
+            if nombre_empleado.strip() == "":
+                st.warning("Por favor ingrese el nombre del empleado.")
+            elif lista_texto.strip() == "":
+                st.warning("Por favor ingrese al menos un número de caso.")
             else:
-                edited["Fecha"] = pd.to_datetime(edited["Fecha"]).dt.date
-                edited["Empleado"] = nombre_empleado
-                edited["Lider"] = lider
+                # Separar por líneas y comas
+                raw_items = []
+                for linea in lista_texto.splitlines():
+                    partes = [p.strip() for p in linea.replace(";", ",").split(",")]
+                    raw_items.extend(p for p in partes if p)
 
-                if df.empty:
-                    next_id = 1
+                numeros_caso = [x for x in raw_items if x != ""]
+
+                if not numeros_caso:
+                    st.warning("No se encontraron números de caso válidos.")
                 else:
-                    next_id = df["ID"].max() + 1
-                edited["ID"] = range(next_id, next_id + len(edited))
+                    df_nuevo = pd.DataFrame(
+                        {
+                            "Numero_caso": numeros_caso,
+                            "Fecha": [fecha_casos] * len(numeros_caso),
+                            "Tipo_caso": [tipo_caso_rapido] * len(numeros_caso),
+                            "Categoria": [categoria_rapida] * len(numeros_caso),
+                        }
+                    )
+                    df_nuevo["Empleado"] = nombre_empleado
+                    df_nuevo["Lider"] = lider
 
-                # Inicializa Duplicado en False; luego recalculamos globalmente
-                edited["Duplicado"] = False
+                    if df.empty:
+                        next_id = 1
+                    else:
+                        next_id = df["ID"].max() + 1
+                    df_nuevo["ID"] = range(next_id, next_id + len(df_nuevo))
+                    df_nuevo["Duplicado"] = False
 
-                edited = edited[["ID", "Empleado", "Lider", "Numero_caso", "Fecha", "Tipo_caso", "Categoria", "Duplicado"]]
+                    df_nuevo = df_nuevo[
+                        ["ID", "Empleado", "Lider", "Numero_caso",
+                         "Fecha", "Tipo_caso", "Categoria", "Duplicado"]
+                    ]
 
-                st.session_state["registros"] = pd.concat(
-                    [st.session_state["registros"], edited], ignore_index=True
-                )
-                df = st.session_state["registros"]
+                    st.session_state["registros"] = pd.concat(
+                        [st.session_state["registros"], df_nuevo],
+                        ignore_index=True,
+                    )
+                    df = st.session_state["registros"]
 
-                # Recalcular duplicados globales
-                df["Duplicado"] = df.duplicated(
-                    subset=["Empleado", "Numero_caso"], keep=False
-                )
+                    # Recalcular duplicados globales
+                    df["Duplicado"] = df.duplicated(
+                        subset=["Empleado", "Numero_caso"], keep=False
+                    )
 
-                df.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")
-                st.success("Registros guardados correctamente.")
+                    df.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")
+                    st.success(f"Se guardaron {len(numeros_caso)} caso(s) correctamente en modo rápido.")
+
+    # ---------- MODO DETALLADO ----------
+    else:
+        st.markdown("### Ingreso detallado de casos (tabla editable)")
+        st.write("Puede copiar/pegar filas completas desde Excel.")
+
+        # Plantilla con varias filas vacías para facilitar el llenado
+        plantilla = pd.DataFrame(
+            [
+                {
+                    "Numero_caso": "",
+                    "Fecha": hoy,
+                    "Tipo_caso": "Productividad",
+                    "Categoria": "Finalizado",
+                }
+                for _ in range(5)
+            ]
+        )
+
+        edited = st.data_editor(
+            plantilla,
+            num_rows="dynamic",
+            use_container_width=True,
+            column_config={
+                "Numero_caso": st.column_config.TextColumn("Número de caso"),
+                "Fecha": st.column_config.DateColumn("Fecha"),
+                "Tipo_caso": st.column_config.SelectboxColumn("Tipo de caso", options=TIPOS_CASO),
+                "Categoria": st.column_config.SelectboxColumn("Categoría", options=CATEGORIAS),
+            },
+            hide_index=True,
+            key="editor_detallado",
+        )
+
+        if st.button("Guardar todos los casos (modo detallado)", type="primary"):
+            if nombre_empleado.strip() == "":
+                st.warning("Por favor ingrese el nombre del empleado.")
+            else:
+                edited["Numero_caso"] = edited["Numero_caso"].astype(str).str.strip()
+                edited = edited[edited["Numero_caso"] != ""]
+                edited = edited.dropna(subset=["Fecha", "Tipo_caso", "Categoria"])
+
+                if edited.empty:
+                    st.warning("No hay casos válidos para guardar.")
+                else:
+                    edited["Fecha"] = pd.to_datetime(edited["Fecha"]).dt.date
+                    edited["Empleado"] = nombre_empleado
+                    edited["Lider"] = lider
+
+                    if df.empty:
+                        next_id = 1
+                    else:
+                        next_id = df["ID"].max() + 1
+                    edited["ID"] = range(next_id, next_id + len(edited))
+
+                    edited["Duplicado"] = False
+
+                    edited = edited[
+                        ["ID", "Empleado", "Lider", "Numero_caso",
+                         "Fecha", "Tipo_caso", "Categoria", "Duplicado"]
+                    ]
+
+                    st.session_state["registros"] = pd.concat(
+                        [st.session_state["registros"], edited], ignore_index=True
+                    )
+                    df = st.session_state["registros"]
+
+                    # Recalcular duplicados globales
+                    df["Duplicado"] = df.duplicated(
+                        subset=["Empleado", "Numero_caso"], keep=False
+                    )
+
+                    df.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")
+                    st.success("Registros guardados correctamente en modo detallado.")
 
     # ---------- RESUMEN DEL EMPLEADO ----------
     df = st.session_state["registros"]
