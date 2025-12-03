@@ -16,7 +16,13 @@ BBVA_PRIMARY = "#0039A6"       # Azul BBVA
 BBVA_PRIMARY_DARK = "#002B76"  # Azul BBVA más oscuro
 BBVA_WHITE = "#FFFFFF"
 
-# Estilos globales
+# Rutas de archivos
+CSV_PATH = "registro_empresarial2.csv"
+SETTINGS_PATH = "config_productividad.csv"
+
+# =========================
+# ESTILOS GLOBALES
+# =========================
 st.markdown(
     f"""
     <style>
@@ -127,10 +133,52 @@ with col_title:
         unsafe_allow_html=True,
     )
 
-CSV_PATH = "registro_empresarial2.csv"
+# =========================
+# FUNCIONES DE CONFIGURACIÓN (PERSISTENCIA)
+# =========================
+def cargar_config():
+    """Lee la configuración desde CSV o crea una por defecto."""
+    if os.path.exists(SETTINGS_PATH):
+        try:
+            cfg = pd.read_csv(SETTINGS_PATH, encoding="utf-8-sig")
+            row = cfg.iloc[0].to_dict()
+        except Exception:
+            row = {}
+    else:
+        row = {}
+
+    # Valores por defecto si faltan
+    config = {
+        "meta_dia": int(row.get("meta_dia", 20)),
+        "meta_mes": int(row.get("meta_mes", 300)),
+        "valor_prod": float(row.get("valor_prod", 3500.0)),
+        "valor_adic": float(row.get("valor_adic", 4000.0)),
+        "valor_sabado": float(row.get("valor_sabado", 5000.0)),
+        "salario_base_mensual": float(row.get("salario_base_mensual", 1_500_000.0)),
+    }
+
+    # Guardar por si no existía
+    guardar_config(config)
+    return config
+
+
+def guardar_config(config: dict):
+    """Guarda la configuración actual en CSV."""
+    df_cfg = pd.DataFrame([config])
+    df_cfg.to_csv(SETTINGS_PATH, index=False, encoding="utf-8-sig")
+
+
+# Cargamos configuración inicial
+config = cargar_config()
+meta_dia = config["meta_dia"]
+meta_mes = config["meta_mes"]
+valor_prod = config["valor_prod"]
+valor_adic = config["valor_adic"]
+valor_sabado = config["valor_sabado"]
+salario_base_mensual = config["salario_base_mensual"]
 
 # =========================
-# CARGA DE DATOS PERSISTENTES (CSV)
+# CARGA DE DATOS PERSISTENTES (CASOS)
 # =========================
 if os.path.exists(CSV_PATH):
     try:
@@ -191,71 +239,64 @@ st.sidebar.header("Configuración")
 
 perfil = st.sidebar.selectbox("Perfil", ["Empleado", "Administrador", "Líder"])
 
-# metas y valores por defecto
-if "meta_dia" not in st.session_state:
-    st.session_state["meta_dia"] = 20
-if "meta_mes" not in st.session_state:
-    st.session_state["meta_mes"] = 300
-
-if "valor_prod" not in st.session_state:
-    st.session_state["valor_prod"] = 3500.0
-if "valor_adic" not in st.session_state:
-    st.session_state["valor_adic"] = 4000.0
-if "valor_sabado" not in st.session_state:
-    st.session_state["valor_sabado"] = 5000.0
-
+# Salario base se puede ajustar siempre
 salario_base_mensual = st.sidebar.number_input(
     "Salario base mensual ($)",
     min_value=0.0,
-    value=1_500_000.0,
+    value=float(salario_base_mensual),
     step=100_000.0,
 )
 
-# MODO LÍDER: puede cambiar metas y valores con clave
+# MODO LÍDER: puede cambiar metas y valores con clave (y quedan guardados)
 if perfil == "Líder":
     clave = st.sidebar.text_input("Contraseña líderes", type="password")
     if clave != "BBVA2025":
         st.sidebar.warning("Contraseña incorrecta. Solo lectura.")
     else:
         st.sidebar.success("Acceso de líder habilitado.")
-        st.session_state["meta_dia"] = st.sidebar.number_input(
+        meta_dia = st.sidebar.number_input(
             "Meta de casos por día",
             min_value=0,
-            value=st.session_state["meta_dia"],
+            value=int(meta_dia),
             step=1,
         )
-        st.session_state["meta_mes"] = st.sidebar.number_input(
+        meta_mes = st.sidebar.number_input(
             "Meta de casos por mes",
             min_value=0,
-            value=st.session_state["meta_mes"],
+            value=int(meta_mes),
             step=5,
         )
         st.sidebar.markdown("---")
         st.sidebar.markdown("Tarifas por tipo de caso:")
-        st.session_state["valor_prod"] = st.sidebar.number_input(
+        valor_prod = st.sidebar.number_input(
             "Valor por caso Productividad ($)",
             min_value=0.0,
-            value=st.session_state["valor_prod"],
+            value=float(valor_prod),
             step=500.0,
         )
-        st.session_state["valor_adic"] = st.sidebar.number_input(
+        valor_adic = st.sidebar.number_input(
             "Valor por caso Adicional ($)",
             min_value=0.0,
-            value=st.session_state["valor_adic"],
+            value=float(valor_adic),
             step=500.0,
         )
-        st.session_state["valor_sabado"] = st.sidebar.number_input(
+        valor_sabado = st.sidebar.number_input(
             "Valor por caso Meta sábado ($)",
             min_value=0.0,
-            value=st.session_state["valor_sabado"],
+            value=float(valor_sabado),
             step=500.0,
         )
 
-meta_dia = st.session_state["meta_dia"]
-meta_mes = st.session_state["meta_mes"]
-valor_prod = st.session_state["valor_prod"]
-valor_adic = st.session_state["valor_adic"]
-valor_sabado = st.session_state["valor_sabado"]
+# Guardar SIEMPRE la configuración actual (haya líder o no)
+config = {
+    "meta_dia": int(meta_dia),
+    "meta_mes": int(meta_mes),
+    "valor_prod": float(valor_prod),
+    "valor_adic": float(valor_adic),
+    "valor_sabado": float(valor_sabado),
+    "salario_base_mensual": float(salario_base_mensual),
+}
+guardar_config(config)
 
 st.markdown("---")
 
