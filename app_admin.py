@@ -147,7 +147,6 @@ def cargar_config():
     else:
         row = {}
 
-    # Valores por defecto si faltan
     config = {
         "meta_dia": int(row.get("meta_dia", 20)),
         "meta_mes": int(row.get("meta_mes", 300)),
@@ -157,7 +156,6 @@ def cargar_config():
         "salario_base_mensual": float(row.get("salario_base_mensual", 1_500_000.0)),
     }
 
-    # Guardar por si no existía
     guardar_config(config)
     return config
 
@@ -180,9 +178,9 @@ salario_base_mensual = config["salario_base_mensual"]
 # =========================
 # CARGA DE DATOS PERSISTENTES (CASOS)
 # =========================
-if os.path.exists(CSV_PATH):
+if os.path.exists("registro_empresarial2.csv"):
     try:
-        df = pd.read_csv(CSV_PATH, encoding="utf-8-sig")
+        df = pd.read_csv("registro_empresarial2.csv", encoding="utf-8-sig")
         if "Fecha" in df.columns:
             df["Fecha"] = pd.to_datetime(df["Fecha"]).dt.date
     except Exception:
@@ -198,6 +196,7 @@ COLUMNAS = [
     "Fecha",
     "Tipo_caso",   # Productividad / Adicional / Meta sábado
     "Categoria",   # Finalizado / Tutela / Defensoría
+    "Duplicado",   # True/False
 ]
 
 if df.empty:
@@ -207,6 +206,8 @@ else:
         if col not in df.columns:
             if col == "ID":
                 df[col] = range(1, len(df) + 1)
+            elif col == "Duplicado":
+                df[col] = False
             else:
                 df[col] = None
     df = df[COLUMNAS]
@@ -214,6 +215,14 @@ else:
 if df["ID"].isnull().any():
     df["ID"] = range(1, len(df) + 1)
 df["ID"] = df["ID"].astype(int)
+
+# Recalcular duplicados globalmente (Empleado + Numero_caso)
+if "Numero_caso" in df.columns and "Empleado" in df.columns:
+    df["Duplicado"] = df.duplicated(
+        subset=["Empleado", "Numero_caso"], keep=False
+    )
+else:
+    df["Duplicado"] = False
 
 st.session_state["registros"] = df
 df = st.session_state["registros"]
@@ -287,7 +296,7 @@ if perfil == "Líder":
             step=500.0,
         )
 
-# Guardar SIEMPRE la configuración actual (haya líder o no)
+# Guardar SIEMPRE la configuración actual
 config = {
     "meta_dia": int(meta_dia),
     "meta_mes": int(meta_mes),
@@ -393,12 +402,21 @@ if perfil == "Empleado":
                     next_id = df["ID"].max() + 1
                 edited["ID"] = range(next_id, next_id + len(edited))
 
-                edited = edited[["ID", "Empleado", "Lider", "Numero_caso", "Fecha", "Tipo_caso", "Categoria"]]
+                # Inicializa Duplicado en False; luego recalculamos globalmente
+                edited["Duplicado"] = False
+
+                edited = edited[["ID", "Empleado", "Lider", "Numero_caso", "Fecha", "Tipo_caso", "Categoria", "Duplicado"]]
 
                 st.session_state["registros"] = pd.concat(
                     [st.session_state["registros"], edited], ignore_index=True
                 )
                 df = st.session_state["registros"]
+
+                # Recalcular duplicados globales
+                df["Duplicado"] = df.duplicated(
+                    subset=["Empleado", "Numero_caso"], keep=False
+                )
+
                 df.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")
                 st.success("Registros guardados correctamente.")
 
@@ -488,14 +506,22 @@ if perfil == "Empleado":
                 st.markdown("#### Casos del mes (puede marcar para eliminar)")
                 df_emp_mes_view = df_emp_mes.copy()
                 df_emp_mes_view["Eliminar"] = False
+                df_emp_mes_view["Duplicado_flag"] = df_emp_mes_view["Duplicado"].map(
+                    lambda x: "Sí" if x else "No"
+                )
 
                 edited_view = st.data_editor(
-                    df_emp_mes_view,
+                    df_emp_mes_view[
+                        ["ID", "Empleado", "Lider", "Numero_caso", "Fecha",
+                         "Tipo_caso", "Categoria", "Duplicado_flag", "Eliminar"]
+                    ],
                     key="editor_empleado",
                     column_config={
                         "Eliminar": st.column_config.CheckboxColumn("Eliminar"),
+                        "Duplicado_flag": st.column_config.TextColumn("Duplicado"),
                     },
                     use_container_width=True,
+                    hide_index=True,
                 )
 
                 if st.button("Eliminar casos seleccionados"):
@@ -505,12 +531,28 @@ if perfil == "Empleado":
                     else:
                         df = st.session_state["registros"]
                         df = df[~df["ID"].isin(ids_a_borrar)]
+                        # Recalcular duplicados después de eliminar
+                        df["Duplicado"] = df.duplicated(
+                            subset=["Empleado", "Numero_caso"], keep=False
+                        )
                         st.session_state["registros"] = df
                         df.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")
                         st.success(
                             f"Se eliminaron {len(ids_a_borrar)} caso(s). "
                             "Recargue la página para ver los cambios."
                         )
+
+                # Tabla adicional solo con duplicados en ROJO
+                df_dup_emp = df_emp_mes[df_emp_mes["Duplicado"]]
+                st.markdown("#### Casos duplicados del mes (mismo empleado y número de caso)")
+                if df_dup_emp.empty:
+                    st.info("No se encontraron casos duplicados para este empleado en el mes.")
+                else:
+                    def color_duplicados(row):
+                        return ['background-color: #f8d7da'] * len(row)
+
+                    styled_dup = df_dup_emp.style.apply(color_duplicados, axis=1)
+                    st.dataframe(styled_dup, use_container_width=True)
 
 # =========================
 # PERFIL ADMINISTRADOR / LÍDER
@@ -599,3 +641,15 @@ if perfil in ["Administrador", "Líder"]:
                     ],
                     use_container_width=True,
                 )
+
+            # Casos duplicados globales en rojo
+            st.markdown("#### Casos duplicados (todos los empleados)")
+            df_dup_global = df_mes[df_mes["Duplicado"]]
+            if df_dup_global.empty:
+                st.info("No se encontraron casos duplicados en el mes.")
+            else:
+                def color_duplicados(row):
+                    return ['background-color: #f8d7da'] * len(row)
+
+                styled_dup_global = df_dup_global.style.apply(color_duplicados, axis=1)
+                st.dataframe(styled_dup_global, use_container_width=True)
