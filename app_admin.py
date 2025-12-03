@@ -394,6 +394,7 @@ if perfil == "Empleado":
                 dinero_total_mes = salario_base_mensual + dinero_casos_mes
 
                 racha_completa = calcular_racha_meta(df_emp_mes, meta_dia)
+                cumple_meta_mes = casos_mes >= meta_mes
 
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
@@ -406,7 +407,10 @@ if perfil == "Empleado":
                     st.markdown("</div>", unsafe_allow_html=True)
                 with col3:
                     st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-                    st.metric("Meta diaria", f"{meta_dia} casos", "Cumple" if casos_dia >= meta_dia else "No")
+                    st.metric(
+                        "Cumple meta mensual",
+                        "Sí" if cumple_meta_mes else "No"
+                    )
                     st.markdown("</div>", unsafe_allow_html=True)
                 with col4:
                     st.markdown('<div class="metric-card">', unsafe_allow_html=True)
@@ -506,7 +510,17 @@ if perfil in ["Administrador", "Líder"]:
             resumen_emp["Racha_perfecta"] = racha_flags
 
             st.markdown("#### Resumen por empleado (mes actual)")
-            st.dataframe(resumen_emp, use_container_width=True)
+
+            # Colorear filas según cumpla meta mensual
+            def color_por_meta(row):
+                if row["Cumple_meta_mes"]:
+                    color = "background-color: #d4edda"  # verde suave
+                else:
+                    color = "background-color: #f8d7da"  # rojo suave
+                return [color] * len(row)
+
+            styled_resumen = resumen_emp.style.apply(color_por_meta, axis=1)
+            st.dataframe(styled_resumen, use_container_width=True)
 
             # Gráfica global por día y categoría
             st.markdown("#### Gráfica global por día y categoría")
