@@ -1,99 +1,153 @@
-
-import os
-import pandas as pd
 import streamlit as st
-import matplotlib.pyplot as plt
+import pandas as pd
+from datetime import datetime
 
-BBVA_PRIMARY = "#072146"
-BBVA_SECONDARY = "#00A1E0"
-LOGO_URL = os.getenv("BBVA_LOGO_URL", "")
-ADMIN_PIN = os.getenv("ADMIN_PIN", "bbva2025")
-META_DIARIA = 12
+st.set_page_config(page_title="Portal de Productividad", layout="wide")
 
-st.set_page_config(page_title="BBVA | Panel Admin", page_icon="🛠️", layout="wide")
-st.markdown('''
-<style>
-.stApp { background: #ffffff; }
-.bbva-header { display:flex; align-items:center; gap:14px; }
-.bbva-title { font-size: 28px; font-weight: 800; color: #072146; }
-.badge-ok { background:#e6f4ea; color:#137333; padding:4px 8px; border-radius:999px; font-weight:600; }
-.badge-ko { background:#fce8e6; color:#a50b0b; padding:4px 8px; border-radius:999px; font-weight:600; }
-</style>
-''', unsafe_allow_html=True)
+st.title("Panel de Productividad de la Empresa")
 
-DATA_PATH = "registro_empresarial2.csv"
-TARIFAS_PATH = "tarifas_empresarial.csv"
+# Inicializar tabla de registros en memoria
+if "registros" not in st.session_state:
+    st.session_state["registros"] = pd.DataFrame(
+        columns=[
+            "Empleado",
+            "Fecha",
+            "Casos",
+            "Horas extra",
+            "Adicionales",
+        ]
+    )
 
-def load_csv(path):
-    if os.path.exists(path):
-        try:
-            return pd.read_csv(path, encoding="utf-8-sig")
-        except Exception:
-            return pd.read_csv(path)
-    return pd.DataFrame()
+df = st.session_state["registros"]
 
-def format_cop(v):
-    try:
-        n = float(v)
-    except Exception:
-        return "0"
-    s = f"{n:,.0f}"
-    return "$ " + s.replace(",", ".") + " COP"
+# Barra lateral: selección de perfil y parámetros generales
+st.sidebar.header("Configuración")
 
-# Gate
-st.sidebar.header("🔐 Acceso")
-if "is_admin" not in st.session_state:
-    st.session_state.is_admin = False
-if not st.session_state.is_admin:
-    pin = st.sidebar.text_input("PIN", type="password", help="PIN por defecto: bbva2025")
-    if st.sidebar.button("Entrar"):
-        if pin == ADMIN_PIN:
-            st.session_state.is_admin = True
-            st.sidebar.success("Acceso concedido.")
+perfil = st.sidebar.selectbox("Perfil", ["Empleado", "Administrador"])
+
+# Parámetros de cálculo
+salario_base_mensual = st.sidebar.number_input(
+    "Salario base mensual ($)", min_value=0.0, value=1_500_000.0, step=100_000.0
+)
+valor_hora_extra = st.sidebar.number_input(
+    "Valor por hora extra ($)", min_value=0.0, value=10_000.0, step=1_000.0
+)
+valor_por_caso = st.sidebar.number_input(
+    "Valor aproximado por caso ($)", min_value=0.0, value=5_000.0, step=500.0
+)
+meta_casos_mes = st.sidebar.number_input(
+    "Meta de casos por mes (para evaluación en modo administrador)",
+    min_value=0,
+    value=100,
+    step=5,
+)
+
+st.markdown("---")
+
+# PERFIL EMPLEADO
+if perfil == "Empleado":
+    st.subheader("Registro de productividad (Empleado)")
+
+    with st.form("form_empleado"):
+        col1, col2 = st.columns(2)
+        with col1:
+            empleado = st.text_input("Nombre del empleado")
+            fecha = st.date_input("Fecha", value=datetime.today())
+            casos = st.number_input("Número de casos del día", min_value=0, step=1)
+        with col2:
+            horas_extra = st.number_input("Horas extra del día", min_value=0.0, step=0.5)
+            adicionales = st.number_input("Adicionales ($)", min_value=0.0, step=1000.0)
+
+        enviado = st.form_submit_button("Guardar registro")
+
+    if enviado:
+        if empleado.strip() == "":
+            st.warning("Por favor ingrese el nombre del empleado.")
         else:
-            st.sidebar.error("PIN incorrecto")
-else:
-    st.sidebar.success("Modo administrador")
+            nuevo = pd.DataFrame(
+                [[empleado, fecha, casos, horas_extra, adicionales]],
+                columns=df.columns,
+            )
+            st.session_state["registros"] = pd.concat(
+                [st.session_state["registros"], nuevo], ignore_index=True
+            )
+            df = st.session_state["registros"]
+            st.success("Registro guardado correctamente.")
 
-st.markdown('<div class="bbva-header">', unsafe_allow_html=True)
-if LOGO_URL:
-    st.image(LOGO_URL, width=110)
-st.markdown('<div class="bbva-title">BBVA · Panel administrativo</div>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
-
-if not st.session_state.is_admin:
-    st.info("Ingresa el PIN en la barra lateral para ver el panel.")
-else:
-    df = load_csv(DATA_PATH)
     if df.empty:
-        st.warning("Aún no hay datos registrados desde el link de empleados.")
+        st.info("Aún no hay registros para mostrar.")
     else:
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            f_mes = st.multiselect("Mes", sorted(df["Mes"].dropna().unique().tolist()))
-        with c2:
-            f_emp = st.multiselect("Empleado", sorted(df["Empleado"].dropna().unique().tolist()))
-        with c3:
-            f_lid = st.multiselect("Líder", sorted(df["Lider"].dropna().unique().tolist()))
+        st.subheader("Resumen del empleado")
 
-        if f_mes: df = df[df["Mes"].isin(f_mes)]
-        if f_emp: df = df[df["Empleado"].isin(f_emp)]
-        if f_lid: df = df[df["Lider"].isin(f_lid)]
+        empleados_disponibles = ["Seleccione..."] + sorted(df["Empleado"].unique().tolist())
+        empleado_sel = st.selectbox("Seleccione su nombre para ver su resumen", empleados_disponibles)
 
-        st.subheader("1) Control por tipo y estado")
-        pivot = df.pivot_table(index=["Tipo","Estado"], values="Numero_Caso", aggfunc="count", fill_value=0).reset_index().rename(columns={"Numero_Caso":"Cantidad"})
-        st.dataframe(pivot, use_container_width=True)
+        if empleado_sel != "Seleccione...":
+            hoy = datetime.today()
+            df_empleado = df[
+                (df["Empleado"] == empleado_sel)
+                & (pd.to_datetime(df["Fecha"]).dt.month == hoy.month)
+                & (pd.to_datetime(df["Fecha"]).dt.year == hoy.year)
+            ]
 
-        st.subheader("2) Cumplimiento diario (meta = 12 de Productividad)")
-        prod = df[(df["Tipo"]=="Productividad") & (df["Numero_Caso"].astype(str).str.strip()!="")].copy()
-        dia = prod.groupby(["Empleado","Fecha"], as_index=False).agg(Total_Casos=("Numero_Caso","count"))
-        dia["Cumple"] = dia["Total_Casos"] >= META_DIARIA
-        dia["Estado"] = dia["Cumple"].map(lambda x: "🟢 Cumplió" if x else "🔴 No cumplió")
-        st.dataframe(dia.sort_values(["Fecha","Empleado"]), use_container_width=True)
+            if df_empleado.empty:
+                st.info("No hay registros para este mes.")
+            else:
+                total_casos = df_empleado["Casos"].sum()
+                total_horas_extra = df_empleado["Horas extra"].sum()
+                total_adicionales = df_empleado["Adicionales"].sum()
 
-        st.subheader("3) Estados por empleado y mes (Productividad vs Variable)")
-        estado_det = df.copy()
-        estado_det["Tiene_Caso"] = estado_det["Numero_Caso"].astype(str).str.strip() != ""
-        estado_det = estado_det[estado_det["Tiene_Caso"]]
-        tabla = estado_det.pivot_table(index=["Empleado","Mes","Tipo"], columns="Estado", values="Numero_Caso", aggfunc="count", fill_value=0)
-        st.dataframe(tabla, use_container_width=True)
+                pago_por_horas = total_horas_extra * valor_hora_extra
+                pago_por_casos = total_casos * valor_por_caso
+                pago_estimado = salario_base_mensual + pago_por_horas + pago_por_casos + total_adicionales
+
+                colA, colB, colC, colD = st.columns(4)
+                colA.metric("Casos en el mes", int(total_casos))
+                colB.metric("Horas extra en el mes", f"{total_horas_extra:.1f}")
+                colC.metric("Adicionales acumulados", f"${total_adicionales:,.0f}")
+                colD.metric("Pago estimado del mes", f"${pago_estimado:,.0f}")
+
+                st.markdown("#### Registros del mes")
+                st.dataframe(df_empleado, use_container_width=True)
+
+# PERFIL ADMINISTRADOR
+else:
+    st.subheader("Vista de administrador")
+
+    if df.empty:
+        st.info("Aún no hay registros para mostrar.")
+    else:
+        hoy = datetime.today()
+        df_mes = df[
+            (pd.to_datetime(df["Fecha"]).dt.month == hoy.month)
+            & (pd.to_datetime(df["Fecha"]).dt.year == hoy.year)
+        ]
+
+        if df_mes.empty:
+            st.info("No hay registros para el mes actual.")
+        else:
+            resumen = df_mes.groupby("Empleado").agg(
+                Casos_mes=("Casos", "sum"),
+                Horas_extra_mes=("Horas extra", "sum"),
+                Adicionales_mes=("Adicionales", "sum"),
+            ).reset_index()
+
+            resumen["Pago_estimado"] = (
+                salario_base_mensual
+                + resumen["Horas_extra_mes"] * valor_hora_extra
+                + resumen["Casos_mes"] * valor_por_caso
+                + resumen["Adicionales_mes"]
+            )
+
+            resumen["Cumple_meta"] = resumen["Casos_mes"] >= meta_casos_mes
+
+            st.markdown("#### Resumen por empleado (mes actual)")
+            st.dataframe(resumen, use_container_width=True)
+
+            st.markdown("Notas:")
+            st.write(
+                "- 'Casos_mes' corresponde al número total de casos registrados en el mes actual por cada empleado."
+            )
+            st.write(
+                "- 'Cumple_meta' compara los casos del mes con la meta configurada en la barra lateral."
+            )
