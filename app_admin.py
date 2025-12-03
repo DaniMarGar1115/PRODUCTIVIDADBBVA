@@ -9,16 +9,29 @@ import os
 st.set_page_config(page_title="Portal de Productividad", layout="wide")
 
 # Estilos tipo BBVA
-BBVA_PRIMARY = "#0039A6"
-BBVA_LIGHT = "#F5F7FB"
+BBVA_PRIMARY = "#0039A6"   # Azul BBVA
+BBVA_DARK = "#00234F"
+BBVA_LIGHT = "#E9EDF5"
 
 st.markdown(
     f"""
     <style>
     .stApp {{
-        background-color: {BBVA_LIGHT};
+        background: linear-gradient(135deg, {BBVA_DARK} 0%, {BBVA_PRIMARY} 35%, {BBVA_LIGHT} 100%);
         font-family: "Segoe UI", sans-serif;
     }}
+
+    /* Fondo de los contenedores principales */
+    .block-container {{
+        padding-top: 1rem;
+        padding-bottom: 3rem;
+        max-width: 1200px;
+        margin: 0 auto;
+        background-color: #FFFFFFEE;
+        border-radius: 16px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }}
+
     .bbva-header {{
         display:flex;
         align-items:center;
@@ -33,19 +46,33 @@ st.markdown(
     }}
     .bbva-subtitle {{
         font-size:14px;
-        color:#4B4B4B;
+        color:#444444;
         margin:0;
     }}
     .metric-card {{
         background:white;
         padding:16px;
         border-radius:10px;
-        border:1px solid #E0E4EC;
+        border:1px solid #D4DBE8;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    }}
+
+    /* Botón principal rojo → azul BBVA */
+    button[kind="primary"] {{
+        background-color: {BBVA_PRIMARY} !important;
+        color: white !important;
+        border-radius: 999px !important;
+        border: none !important;
+        font-weight: 600 !important;
+    }}
+    button[kind="primary"]:hover {{
+        background-color: {BBVA_DARK} !important;
     }}
     </style>
     """,
     unsafe_allow_html=True,
 )
+
 
 # Encabezado con logo
 col_logo, col_title = st.columns([1, 5])
