@@ -13,13 +13,115 @@ BBVA_PRIMARY = "#0039A6"   # Azul BBVA
 BBVA_DARK = "#00234F"
 BBVA_LIGHT = "#E9EDF5"
 
+BBVA_PRIMARY = "#0039A6"      # Azul BBVA
+BBVA_PRIMARY_DARK = "#002B76" # Azul BBVA más oscuro
+BBVA_WHITE = "#FFFFFF"
+
 st.markdown(
     f"""
     <style>
+
+    /* Fondo general */
     .stApp {{
-        background: linear-gradient(135deg, {BBVA_DARK} 0%, {BBVA_PRIMARY} 35%, {BBVA_LIGHT} 100%);
-        font-family: "Segoe UI", sans-serif;
+        background-color: {BBVA_WHITE};
+        font-family: "Segoe UI", "Roboto", sans-serif;
+        color: #000000 !important;
     }}
+
+    /* Contenedor principal */
+    .block-container {{
+        padding-top: 2rem;
+        padding-bottom: 4rem;
+        background-color: {BBVA_WHITE};
+        max-width: 1200px;
+    }}
+
+    /* Encabezado con logo */
+    .bbva-header {{
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 10px 0 20px 0;
+        border-bottom: 2px solid {BBVA_PRIMARY};
+        margin-bottom: 20px;
+    }}
+
+    .bbva-title {{
+        font-size: 32px;
+        font-weight: 700;
+        color: {BBVA_PRIMARY};
+        margin: 0;
+    }}
+
+    .bbva-subtitle {{
+        font-size: 16px;
+        font-weight: 400;
+        color: #000000;
+        margin: 0;
+    }}
+
+    /* Tarjetas de métricas */
+    .metric-card {{
+        background-color: {BBVA_WHITE};
+        color: #000000;
+        border: 1px solid #DCE3F0;
+        padding: 16px;
+        border-radius: 12px;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.05);
+    }}
+
+    /* Botón principal azul BBVA */
+    button[kind="primary"] {{
+        background-color: {BBVA_PRIMARY} !important;
+        color: {BBVA_WHITE} !important;
+        border-radius: 999px;
+        font-weight: 600;
+        border: none;
+        padding: 10px 20px;
+    }}
+
+    button[kind="primary"]:hover {{
+        background-color: {BBVA_PRIMARY_DARK} !important;
+    }}
+
+    /* Select, input, tabla */
+    .stSelectbox div[data-baseweb="select"] {{
+        background-color: {BBVA_WHITE};
+        color: #000000;
+    }}
+
+    .stTextInput input {{
+        background-color: {BBVA_WHITE};
+        color: #000000;
+    }}
+
+    .stNumberInput input {{
+        background-color: {BBVA_WHITE};
+        color: #000000;
+    }}
+
+    .stDateInput input {{
+        background-color: {BBVA_WHITE};
+        color: #000000;
+    }}
+
+    /* Estilos para la tabla */
+    .stDataFrame, .stDataEditor {{
+        color: #000000 !important;
+    }}
+
+    /* Barra lateral */
+    .css-1d391kg, .css-1uixxvy, .css-1y4p8pa {{
+        background-color: {BBVA_WHITE} !important;
+        color: #000000 !important;
+        border-right: 2px solid {BBVA_PRIMARY};
+    }}
+
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 
     /* Fondo de los contenedores principales */
     .block-container {{
