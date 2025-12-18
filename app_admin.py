@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, date
 import os
+import base64
+import requests
+from io import BytesIO
 
 # =========================
 # CONFIGURACIÓN GENERAL
@@ -17,8 +20,50 @@ BBVA_PRIMARY_DARK = "#002B76"  # Azul BBVA más oscuro
 BBVA_WHITE = "#FFFFFF"
 
 # Rutas de archivos
-CSV_PATH = "registro_empresarial2.csv"
-SETTINGS_PATH = "config_productividad.csv"
+CSV_PATH = st.secrets.get("REGISTROS_PATH", "data/registro_empresarial2.csv")
+SETTINGS_PATH = st.secrets.get("CONFIG_PATH", "data/config_productividad.csv")
+def _gh_headers():
+    return {
+        "Authorization": f"token {st.secrets['GITHUB_TOKEN']}",
+        "Accept": "application/vnd.github+json",
+    }
+
+def gh_get_file(repo_path: str):
+    repo = st.secrets["GITHUB_REPO"]
+    url = f"https://api.github.com/repos/{repo}/contents/{repo_path}"
+    r = requests.get(url, headers=_gh_headers())
+    if r.status_code == 200:
+        js = r.json()
+        return base64.b64decode(js["content"]), js["sha"]
+    if r.status_code == 404:
+        return b"", None
+    raise Exception(f"GitHub GET error {r.status_code}: {r.text}")
+
+def gh_put_file(repo_path: str, content_bytes: bytes, message: str):
+    repo = st.secrets["GITHUB_REPO"]
+    url = f"https://api.github.com/repos/{repo}/contents/{repo_path}"
+    _, sha = gh_get_file(repo_path)
+
+    payload = {
+        "message": message,
+        "content": base64.b64encode(content_bytes).decode("utf-8"),
+    }
+    if sha:
+        payload["sha"] = sha
+
+    r = requests.put(url, headers=_gh_headers(), json=payload)
+    if r.status_code not in (200, 201):
+        raise Exception(f"GitHub PUT error {r.status_code}: {r.text}")
+
+def cargar_df_desde_github(repo_path: str) -> pd.DataFrame:
+    content, _ = gh_get_file(repo_path)
+    if not content:
+        return pd.DataFrame()
+    return pd.read_csv(BytesIO(content), encoding="utf-8-sig")
+
+def guardar_df_a_github(repo_path: str, df: pd.DataFrame, msg: str):
+    csv_bytes = df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
+    gh_put_file(repo_path, csv_bytes, msg)
 
 # =========================
 # ESTILOS GLOBALES
