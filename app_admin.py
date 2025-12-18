@@ -422,8 +422,3 @@ if perfil == "Empleado":
                     guardar_df_a_github(CSV_PATH, df, "Update registros productividad")
 
                     st.success(f"Se guardaron {len(numeros_caso)} caso(s) correctamente en modo rápido.")
-
-# =========================
-# PERFIL ADMINISTRADOR / LÍDER (NO SE CAMBIÓ)
-# =========================
-# Tu resto del código queda igual… (si necesitas lo completo, me dices y lo integro)
