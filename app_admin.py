@@ -182,14 +182,11 @@ with col_title:
 # FUNCIONES DE CONFIGURACIÓN (PERSISTENCIA)
 # =========================
 def cargar_config():
-    """Lee la configuración desde CSV o crea una por defecto."""
-    if os.path.exists(SETTINGS_PATH):
-        try:
-            cfg = pd.read_csv(SETTINGS_PATH, encoding="utf-8-sig")
-            row = cfg.iloc[0].to_dict()
-        except Exception:
-            row = {}
-    else:
+    """Lee la configuración desde GitHub (CSV) o crea una por defecto."""
+    try:
+        cfg = cargar_df_desde_github(SETTINGS_PATH)
+        row = cfg.iloc[0].to_dict() if not cfg.empty else {}
+    except Exception:
         row = {}
 
     config = {
@@ -206,9 +203,9 @@ def cargar_config():
 
 
 def guardar_config(config: dict):
-    """Guarda la configuración actual en CSV."""
+    """Guarda la configuración actual en GitHub."""
     df_cfg = pd.DataFrame([config])
-    df_cfg.to_csv(SETTINGS_PATH, index=False, encoding="utf-8-sig")
+    guardar_df_a_github(SETTINGS_PATH, df_cfg, "Update config_productividad")
 
 
 # Cargamos configuración inicial
