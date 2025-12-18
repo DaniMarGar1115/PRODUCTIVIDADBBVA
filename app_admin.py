@@ -62,7 +62,8 @@ def cargar_df_desde_github(repo_path: str) -> pd.DataFrame:
     return pd.read_csv(BytesIO(content), encoding="utf-8-sig")
 
 def guardar_df_a_github(repo_path: str, df: pd.DataFrame, msg: str):
-    csv_bytes = df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
+    csv_bytes = guardar_df_a_github(CSV_PATH, df, "Update registros productividad")
+
     gh_put_file(repo_path, csv_bytes, msg)
 
 # =========================
@@ -472,7 +473,8 @@ if perfil == "Empleado":
                         subset=["Empleado", "Numero_caso"], keep=False
                     )
 
-                    df.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")
+                    guardar_df_a_github(CSV_PATH, df, "Update registros productividad")
+
                     st.success(f"Se guardaron {len(numeros_caso)} caso(s) correctamente en modo rápido.")
 
     # ---------- MODO DETALLADO ----------
@@ -545,7 +547,7 @@ if perfil == "Empleado":
                         subset=["Empleado", "Numero_caso"], keep=False
                     )
 
-                    df.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")
+                    guardar_df_a_github(CSV_PATH, df, "Update registros productividad")
                     st.success("Registros guardados correctamente en modo detallado.")
 
     # ---------- RESUMEN DEL EMPLEADO ----------
@@ -664,7 +666,7 @@ if perfil == "Empleado":
                             subset=["Empleado", "Numero_caso"], keep=False
                         )
                         st.session_state["registros"] = df
-                        df.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")
+                        guardar_df_a_github(CSV_PATH, df, "Update registros productividad")
                         st.success(
                             f"Se eliminaron {len(ids_a_borrar)} caso(s). "
                             "Recargue la página para ver los cambios."
